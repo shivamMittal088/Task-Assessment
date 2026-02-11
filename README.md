@@ -1,88 +1,110 @@
-# Auth Flow Test Commands
+# The Silent Server (Backend Debugging Assignment)
 
-This file contains `curl` commands to test the full authentication flow for the assignment.
+This API is intentionally broken. Your task is to debug it and complete the authentication flow.
 
-## Start server (PowerShell)
-```powershell
-cd "d:\Practice 1\broken_auth_assignment"
+## Setup
 
-npm install
-node server.js
-```
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-## Start server (cmd)
-```cmd
-cd "d:\Practice 1\broken_auth_assignment"
+2. Start the server:
+   ```bash
+   npm start
+   ```
+   Server runs at: `http://localhost:3000`
 
-npm install
-node server.js
-```
+## Assignment Objective
 
-Base URL: http://localhost:3000
+The goal is to fix the broken authentication endpoints so that a user can:
+1.  **Login** to get a session ID and OTP.
+2.  **Verify the OTP** to get a valid session cookie.
+3.  **Exchange the Session** for a JWT Access Token.
+4.  **Access Protected Routes** using the token.
 
-### 1) POST /auth/login
-Request a login session and OTP (OTP is logged to server console).
+You will need to use your browser's developer tools, network inspection, and server logs to debug.
+
+---
+
+## Tasks & Verification
+
+### Task 1: Fix Login
+**Endpoint:** `POST /auth/login`
+The server should generate a session and log an OTP to the console.
+
+**Test Command:**
 ```bash
 curl -X POST http://localhost:3000/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"user@test.com","password":"password123"}'
 ```
+**Expected Outcome:**
+- Server logs the OTP (e.g., `[OTP] Session abc12345 generated`).
+- Response contains `loginSessionId`.
 
-Example response:
-```json
-{ "message": "OTP sent", "loginSessionId": "abc123" }
-```
+### Task 2: Fix OTP Verification
+**Endpoint:** `POST /auth/verify-otp`
+The server fails to verify the OTP correctly. You need to find out why.
+*Hint: Check data types and how cookies are set.*
 
-### 2) POST /auth/verify-otp
-Capture cookies to `cookies.txt` when verifying OTP.
+**Test Command:**
+(Replace `<loginSessionId>` and `<otp>` with values from Task 1)
 ```bash
 curl -c cookies.txt -X POST http://localhost:3000/auth/verify-otp \
   -H "Content-Type: application/json" \
   -d '{"loginSessionId":"<loginSessionId>","otp":"<otp_from_logs>"}'
 ```
+**Expected Outcome:**
+- `cookies.txt` is created containing a session cookie.
+- Response says "OTP verified".
 
-Example response:
-```json
-{ "message": "OTP verified", "sessionId": "abc123" }
-```
+### Task 3: Fix Token Generation
+**Endpoint:** `POST /auth/token`
+This endpoint is supposed to issue a JWT, but it has a bug in how it reads the session.
 
-### 3) POST /auth/token
-Use the cookie jar from the previous step to request an access token.
+**Test Command:**
 ```bash
+# Uses the cookie captured in Task 2
 curl -b cookies.txt -X POST http://localhost:3000/auth/token
 ```
+**Expected Outcome:**
+- Response contains `{ "access_token": "..." }`.
 
-Alternative (if server expects Authorization header — intentional bug):
+### Task 4: Fix Protected Route Access
+**Endpoint:** `GET /protected`
+Ensure the middleware correctly validates the token.
+
+**Test Command:**
 ```bash
-curl -X POST http://localhost:3000/auth/token \
-  -H "Authorization: Bearer <loginSessionId_or_token>"
+# Replace <jwt> with the token from Task 3
+curl -H "Authorization: Bearer <jwt>" http://localhost:3000/protected
 ```
+**Expected Outcome:**
+- Response: `{ "message": "Access granted", "user": ... }`
 
-Expected response:
-```json
-{ "access_token": "<jwt>", "expires_in": 900 }
-```
+---
 
-### 4) GET /protected
-Access the protected endpoint using the cookie jar or Authorization header.
-```bash
-# With cookie
-curl -b cookies.txt http://localhost:3000/protected
 
-# With Authorization header
-curl -H "Authorization: Bearer <jwt_or_session>" http://localhost:3000/protected
-```
+## Expected Output
 
-### 5) Legacy /token endpoint
-```bash
-curl -X POST http://localhost:3000/token \
-  -H "Content-Type: application/json" \
-  -d '{"email":"candidate@gmail.com"}'
-```
+After fixing the bugs, you should be able to run the following sequence successfully:
 
-### Debugging tips
-- Check server console logs for OTP and error details.
-- Use browser DevTools > Network > Cookies to inspect response cookies.
-- Use `cookies.txt` with `-c` and `-b` to persist and send cookies with `curl`.
-- Decode JWTs at https://jwt.io to inspect claims and expiry.
-- Compare headers vs cookies if requests fail with 401 — intentional bugs often check the wrong location.
+1.  **Login**: Receive a `loginSessionId` and see an OTP in the server logs.
+2.  **Verify OTP**: Receive a session cookie (`session_token`).
+3.  **Get Token**: Exchange the session cookie for a JWT (`access_token`).
+4.  **Access Protected Route**: Use the JWT to get a 200 OK response with user details and a **unique Success Flag**.
+
+## Debugging Tips
+
+- **Server Logs**: Watch the terminal where `npm start` is running to see errors and the generated OTP.
+- **Network Tab**: Use the browser developer tools or `curl -v` to inspect request headers and response cookies.
+- **JWT Debugging**: Use [jwt.io](https://jwt.io) to decode tokens and verify their contents.
+
+
+104: ## Submission
+105: 
+106: To submit your assignment:
+107: 1.  Upload your fixed code to a GitHub repository or zip the project.
+108: 2.  **Crucial**: Include the `success_flag` returned by the `/protected` endpoint in your submission comments or a text file.
+109: 3.  (Optional but recommended) A short video showing the successful run of all 4 tasks.

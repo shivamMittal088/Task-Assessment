@@ -133,7 +133,7 @@ app.post("/auth/token", (req, res) => {
       },
       secret,
       {
-        expiresIn: "15m", 
+        expiresIn: "15m",
       }
     );
 
@@ -154,6 +154,7 @@ app.get("/protected", authMiddleware, (req, res) => {
   return res.json({
     message: "Access granted",
     user: req.user,
+    success_flag: `FLAG-${Buffer.from(req.user.email + "_COMPLETED_ASSIGNMENT").toString('base64')}`,
   });
 });
 
